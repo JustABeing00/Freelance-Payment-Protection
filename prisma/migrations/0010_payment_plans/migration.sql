@@ -8,7 +8,7 @@
 -- - `note` (freelancer context, e.g. "client cash-flow accommodation").
 -- - `updatedAt` lifecycle marker.
 -- - `PlanState.superseded`: terminal state for replaced versions.
--- - Index on (workspace_id, project_id) for the plan-history views.
+-- - Index on (workspaceId, projectId) for the plan-history views.
 -- Backward compatible: all new columns nullable or defaulted.
 
 DO $$ BEGIN
@@ -25,7 +25,7 @@ ALTER TABLE payment_plans
 
 ALTER TABLE payment_plans
   ADD CONSTRAINT payment_plans_original_positive_chk
-  CHECK ("original_amount_cents" > 0) NOT VALID;
+  CHECK ("originalAmountCents" > 0) NOT VALID;
 
 CREATE INDEX IF NOT EXISTS "plans_ws_project_idx"
-  ON "payment_plans"("workspace_id","project_id");
+  ON "payment_plans"("workspaceId","projectId");

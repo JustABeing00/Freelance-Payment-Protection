@@ -34,15 +34,15 @@ BEGIN
   END IF;
   -- TG_OP = 'UPDATE': business-money columns are write-once.
   IF (
-    OLD."workspace_id" IS DISTINCT FROM NEW."workspace_id"
-    OR OLD."project_id" IS DISTINCT FROM NEW."project_id"
-    OR OLD."milestone_id" IS DISTINCT FROM NEW."milestone_id"
+    OLD."workspaceId" IS DISTINCT FROM NEW."workspaceId"
+    OR OLD."projectId" IS DISTINCT FROM NEW."projectId"
+    OR OLD."milestoneId" IS DISTINCT FROM NEW."milestoneId"
     OR OLD."provider" IS DISTINCT FROM NEW."provider"
-    OR OLD."provider_payment_id" IS DISTINCT FROM NEW."provider_payment_id"
-    OR OLD."amount_cents" IS DISTINCT FROM NEW."amount_cents"
+    OR OLD."providerPaymentId" IS DISTINCT FROM NEW."providerPaymentId"
+    OR OLD."amountCents" IS DISTINCT FROM NEW."amountCents"
     OR OLD."currency" IS DISTINCT FROM NEW."currency"
-    OR OLD."idempotency_key" IS DISTINCT FROM NEW."idempotency_key"
-    OR OLD."created_at" IS DISTINCT FROM NEW."created_at"
+    OR OLD."idempotencyKey" IS DISTINCT FROM NEW."idempotencyKey"
+    OR OLD."createdAt" IS DISTINCT FROM NEW."createdAt"
   ) THEN
     RAISE EXCEPTION 'payment money/provider linkage is immutable (payment %)', OLD."id"
       USING ERRCODE = '25001';

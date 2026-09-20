@@ -6,17 +6,17 @@
 -- be unscheduled at draft time; validation lives in Zod + domain).
 
 ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'USD';
-ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "approval_state" TEXT NOT NULL DEFAULT 'none';
-ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "deliverable_state" TEXT NOT NULL DEFAULT 'locked';
-ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "unlock_state" TEXT NOT NULL DEFAULT 'locked';
-ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "applied_payment_ids" TEXT[] NOT NULL DEFAULT '{}';
-ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "amount_history" JSONB NOT NULL DEFAULT '[]';
-ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "approved_version_id" TEXT;
-ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "current_version_id" TEXT;
-ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT NOW();
+ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "approvalState" TEXT NOT NULL DEFAULT 'none';
+ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "deliverableState" TEXT NOT NULL DEFAULT 'locked';
+ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "unlockState" TEXT NOT NULL DEFAULT 'locked';
+ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "appliedPaymentIds" TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "amountHistory" JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "approvedVersionId" TEXT;
+ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "currentVersionId" TEXT;
+ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT NOW();
 
 -- Allow draft milestones without a scheduled date.
-ALTER TABLE "milestones" ALTER COLUMN "due_date" DROP NOT NULL;
+ALTER TABLE "milestones" ALTER COLUMN "dueDate" DROP NOT NULL;
 
 -- First milestone of each project is available; the rest start locked.
 -- (New rows default to 'locked'; the API sets orderIndex 0 → 'available'.)
@@ -27,7 +27,7 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'milestones_project_order_uniq') THEN
     ALTER TABLE "milestones"
-      ADD CONSTRAINT "milestones_project_order_uniq" UNIQUE ("project_id", "order_index");
+      ADD CONSTRAINT "milestones_project_order_uniq" UNIQUE ("projectId", "orderIndex");
   END IF;
 END $$;
 
@@ -36,6 +36,6 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'milestones_amount_chk') THEN
     ALTER TABLE "milestones"
-      ADD CONSTRAINT "milestones_amount_chk" CHECK ("amount_cents" > 0);
+      ADD CONSTRAINT "milestones_amount_chk" CHECK ("amountCents" > 0);
   END IF;
 END $$;

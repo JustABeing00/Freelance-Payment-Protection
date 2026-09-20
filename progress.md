@@ -5,8 +5,8 @@
 ## Product
 
 Name: FreelancePaymentProtection
-Current Version: 0.19.0 (session 24: launch product — public home/pricing/FAQ/privacy/terms/contact/onboarding + feedback, 357 tests green)
-Current Stage: Session 24 — first-external-users launch (complete)
+Current Version: 0.19.0 (session 24: launch product — public home/pricing/FAQ/privacy/terms/contact/onboarding + feedback, 357 tests green; post-24 fixes: CI DATABASE_URL env, @prisma/client moved to dependencies for Docker runtime, Framer DESIGN.md dark-canvas redesign + scroll reveal, migration naming unification below)
+Current Stage: Session 25 — Neon first-deploy migration repair (naming unification, awaiting live deploy)
 
 ## Core Product Thesis
 

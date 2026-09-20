@@ -1,6 +1,6 @@
 -- Session 12: reminder + escalation engine audit columns.
 -- Extends the foundation `notifications` table (created in 0001) so every
--- automation is auditable: scheduled_at / sent_at / delivery status /
+-- automation is auditable: scheduledFor / sentAt / delivery status /
 -- recipient / template+version / rendered snapshot / result-error /
 -- attempt count / next scheduled action / cancel marker / idempotency key.
 -- Also adds a per-project reminder-policy override (`{}` = inherit workspace
@@ -29,7 +29,7 @@ DO $$ BEGIN
 END $$;
 
 CREATE INDEX IF NOT EXISTS notifications_project_idx
-  ON notifications ("workspace_id", "projectId");
+  ON notifications ("workspaceId", "projectId");
 
 ALTER TABLE projects
-  ADD COLUMN IF NOT EXISTS "reminder_policy" JSONB NOT NULL DEFAULT '{}';
+  ADD COLUMN IF NOT EXISTS "reminderPolicy" JSONB NOT NULL DEFAULT '{}';

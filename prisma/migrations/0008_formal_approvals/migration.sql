@@ -19,7 +19,7 @@ ALTER TABLE approvals
 -- approvals (portal milestone approve without a deliverable row) need it
 -- nullable. Rows already written keep their FK.
 DO $$ BEGIN
-  ALTER TABLE approvals ALTER COLUMN "deliverable_version_id" DROP NOT NULL;
+  ALTER TABLE approvals ALTER COLUMN "deliverableVersionId" DROP NOT NULL;
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 

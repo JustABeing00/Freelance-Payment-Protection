@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadEnv } from "../../src/config/env.js";
@@ -49,6 +49,28 @@ describe("append-only migration guards", () => {
       expect(sql).toContain(`ON "${table}"`);
     }
     expect(sql).toContain("prevent_history_mutation");
-    expect(sql).toContain("idempotency_key");
+    expect(sql).toContain("idempotencyKey");
+  });
+});
+
+describe("migration/schema naming contract", () => {
+  it("no migration references snake_case columns (schema.prisma is camelCase, quoted identifiers are case-sensitive)", () => {
+    // Table names stay snake_case via @@map — only column identifiers must be
+    // camelCase. A single "workspace_id" in an index/constraint/trigger breaks
+    // `migrate deploy` with 42703 (see 0007 P3018 incident).
+    const dir = join(process.cwd(), "prisma", "migrations");
+    const snakeColumns = [
+      '"workspace_id"',
+      '"project_id"',
+      '"milestone_id"',
+      '"created_at"',
+      '"updated_at"',
+    ];
+    for (const name of readdirSync(dir)) {
+      const sql = readFileSync(join(dir, name, "migration.sql"), "utf8");
+      for (const bad of snakeColumns) {
+        expect(sql, `${name} must not reference ${bad}`).not.toContain(bad);
+      }
+    }
   });
 });
