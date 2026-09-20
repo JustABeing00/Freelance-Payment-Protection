@@ -60,8 +60,8 @@ function publicLayout(args: {
   body: string;
 }): string {
   const { title, description, active, body } = args;
-  const nav = (key: string, href: string, label: string): string =>
-    `<a class="navlink${active === key ? " is-active" : ""}" href="${href}">${label}</a>`;
+  const nav = (key: string, href: string, label: string, cls?: string): string =>
+    `<a class="navlink${active === key ? " is-active" : ""}${cls ? ` ${cls}` : ""}" href="${href}">${label}</a>`;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -77,11 +77,12 @@ function publicLayout(args: {
 <header class="topbar"><div class="wrap topbar-inner"><div class="brand"><a class="brand-link" href="/"><span class="brand-dot" aria-hidden="true"></span>FreelancePaymentProtection</a></div><nav class="nav" aria-label="Site">
 ${nav("pricing", "/pricing", "Pricing")}
 ${nav("faq", "/faq", "FAQ")}
-${nav("onboarding", "/onboarding", "Get started")}
 ${nav("contact", "/contact", "Contact")}
+${nav("signin", "/signin", "Sign in")}
+${nav("signup", "/signup", "Get started", "nav-cta")}
 </nav></div></header>
 <main class="wrap" id="main-content" tabindex="-1">${body}</main>
-<footer class="wrap foot"><p class="foot-links"><span class="brand-mini">FreelancePaymentProtection</span> · <a href="/pricing">Pricing</a> · <a href="/faq">FAQ</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/contact">Contact</a> · <a href="/onboarding">Get started</a></p><p>${escapeHtml(HONEST_FOOTER)}</p></footer>
+<footer class="wrap foot"><p class="foot-links"><span class="brand-mini">FreelancePaymentProtection</span> · <a href="/pricing">Pricing</a> · <a href="/faq">FAQ</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/contact">Contact</a> · <a href="/signup">Get started</a> · <a href="/signin">Sign in</a></p><p>${escapeHtml(HONEST_FOOTER)}</p></footer>
 <script src="/app/app.js" defer></script>
 </body>
 </html>`;
@@ -95,7 +96,7 @@ function homeBody(): string {
   return `<section class="hero"><p class="eyebrow reveal">Payment-protection workflow</p>
 <h1 class="hero-display reveal" data-rv="1">Get paid for freelance work, without chasing.</h1>
 <p class="hero-sub reveal" data-rv="2">Milestones, approvals, verified receipts, calm reminders, and a complete record — finals stay locked until approval + verified payment are both recorded.</p>
-<div class="hero-ctas reveal" data-rv="3"><a class="btn" href="/onboarding">Start the guided setup →</a><a class="btn secondary" href="/pricing">See pricing →</a></div></section>
+<div class="hero-ctas reveal" data-rv="3"><a class="btn" href="/signup">Get started for free →</a><a class="btn secondary" href="/pricing">See pricing →</a></div></section>
 <div class="nextaction reveal"><strong>What this is:</strong> an organized workflow that ties payment to project progress. <strong>What it is not:</strong> a promise of payment, legal advice, or an escrow service.</div>
 <div class="spot-grid"><div class="spot spot-violet reveal"><p class="spot-kicker">Milestones</p><p class="spot-title">Every payment has progress attached.</p><p class="spot-body">Terms are versioned and hash-pinned, so the amount, the work, and the approval always agree.</p></div>
 <div class="spot spot-magenta reveal" data-rv="1"><p class="spot-kicker">Approvals</p><p class="spot-title">Clients approve the exact version.</p><p class="spot-body">Previews are for review; approval pins that version. New versions reset cleanly.</p></div>
@@ -120,7 +121,7 @@ function homeBody(): string {
         body: "Release needs approval + verified payment. Every step stays in an append-only timeline.",
       },
     ],
-  )}<p class="sub">If payment runs late: calm automatic follow-ups first, then an exact-sum payment plan, then recorded work pause, then a factual evidence export. Each step is recorded; nothing is edited.</p><p class="btn-row"><a class="btn" href="/onboarding">Start the guided setup →</a><a class="btn secondary" href="/pricing">See pricing →</a></p></div></section>
+  )}<p class="sub">If payment runs late: calm automatic follow-ups first, then an exact-sum payment plan, then recorded work pause, then a factual evidence export. Each step is recorded; nothing is edited.</p><p class="btn-row"><a class="btn" href="/signup">Get started for free →</a><a class="btn secondary" href="/pricing">See pricing →</a></p></div></section>
 ${card("What you can check on every project", `<div class="table-scroll"><table class="table"><tbody><tr><th scope="row">Money</th><td>Verified-paid vs outstanding, per milestone and per project. Claims marked “I’ve paid” stay unverified until the provider confirms.</td></tr><tr><th scope="row">Approvals</th><td>Version-pinned decisions: approved, revision requested, rejected, or disputed — new versions reset cleanly.</td></tr><tr><th scope="row">Delivery</th><td>Previews for review early; final files only when released. Previews are a speed bump, not copy protection.</td></tr><tr><th scope="row">Record</th><td>Chronological timeline plus a factual export for your records or a mediator. Corrections arrive as new entries, never edits.</td></tr></tbody></table></div>`)}
 ${card("Honest limits", `<p class="sub">This product does not hold funds, does not give legal advice, and does not predict or promise dispute outcomes. Payment confirmation depends on your payment provider; record-keeping depends on using the workflow (send terms, schedule reminders, record approvals). Enforcement of any agreement depends on your jurisdiction and the facts.</p>`)}`;
 }
@@ -250,6 +251,48 @@ ${card("What happens automatically", `<p class="sub">Due-date reminders, verifie
 ${card("If a payment runs late", `<p class="sub">Follow-ups stay calm and system-voiced. Offer an exact-sum plan if cash flow is the issue, pause work with a recorded reason if the terms allow, and export the factual record when you need it for your files or a mediator.</p>`)}`;
 }
 
+function signupBody(): string {
+  return `${pageHeader("Get started", "Create your account.", "One account, one workspace, about a minute. Your first payment-ready project follows in about ten.")}
+<section class="card reveal"><div class="card-head"><h2>Create account</h2><span class="pill pill-info">Early access</span></div><div class="card-body">
+<form class="form" data-auth="signup" action="/api/v1/auth/signup" method="post">
+<div class="field"><label for="su-name">Your name</label><input id="su-name" name="displayName" required maxlength="80" autocomplete="name" placeholder="e.g. Alex Freelancer" /></div>
+<div class="field"><label for="su-email">Email</label><input id="su-email" name="email" type="email" required maxlength="254" autocomplete="email" placeholder="you@studio.com" /></div>
+<div class="field"><label for="su-pass">Password (12+ characters)</label><input id="su-pass" name="password" type="password" required minlength="12" maxlength="256" autocomplete="new-password" /></div>
+<div class="field"><label for="su-ws">Workspace name (optional)</label><input id="su-ws" name="workspaceName" maxlength="80" placeholder="Defaults to your studio name" /></div>
+<div><button class="btn" type="submit">Create account</button> <span data-status class="stat-hint"></span></div>
+<p class="sub">A workspace is created for you automatically — no card, no setup call. Already have an account? <a href="/signin">Sign in →</a></p>
+</form></div></section>`;
+}
+
+function signinBody(): string {
+  return `${pageHeader("Welcome back", "Sign in.", "Your clients, projects and money are where you left them.")}
+<section class="card reveal"><div class="card-head"><h2>Sign in</h2></div><div class="card-body">
+<form class="form" data-auth="signin" action="/api/v1/auth/signin" method="post">
+<div class="field"><label for="si-email">Email</label><input id="si-email" name="email" type="email" required maxlength="254" autocomplete="email" /></div>
+<div class="field"><label for="si-pass">Password</label><input id="si-pass" name="password" type="password" required maxlength="256" autocomplete="current-password" /></div>
+<div><button class="btn" type="submit">Sign in</button> <span data-status class="stat-hint"></span></div>
+<p class="sub">New here? <a href="/signup">Create an account →</a></p>
+</form></div></section>`;
+}
+
+/** True when the request carries a verifiable session (cookie or Bearer). */
+function hasValidSession(
+  request: { headers: { authorization?: unknown; cookie?: unknown } },
+  deps: RouteDeps,
+): boolean {
+  const token = extractSessionToken({
+    authorization: request.headers.authorization,
+    cookie: request.headers.cookie,
+  });
+  if (!token) return false;
+  try {
+    verifySessionToken({ token, sessionSecret: deps.sessionSecret });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const workspaceQuery = z.object({ workspaceId: uuidSchema });
 
 async function onboardingIdentity(
@@ -338,6 +381,40 @@ export function registerSiteRoutes(app: FastifyInstance, deps: RouteDeps): void 
     onboardingPublicBody,
   );
 
+  // ---- Browser auth: signup / signin forms (the API does the real work) ----
+  // Session-aware with no-store: a signed-in visitor bounces to /app instead
+  // of seeing a form, and no cached copy ever leaks across identities.
+  app.get("/signup", async (request, reply) => {
+    if (hasValidSession(request, deps)) return reply.redirect("/app");
+    return reply
+      .header("content-type", "text/html; charset=utf-8")
+      .header("cache-control", "no-store")
+      .send(
+        publicLayout({
+          title: "Get started",
+          description:
+            "Create your FreelancePaymentProtection account — one workspace, about a minute.",
+          active: "signup",
+          body: signupBody(),
+        }),
+      );
+  });
+
+  app.get("/signin", async (request, reply) => {
+    if (hasValidSession(request, deps)) return reply.redirect("/app");
+    return reply
+      .header("content-type", "text/html; charset=utf-8")
+      .header("cache-control", "no-store")
+      .send(
+        publicLayout({
+          title: "Sign in",
+          description: "Sign in to your FreelancePaymentProtection workspace.",
+          active: "signin",
+          body: signinBody(),
+        }),
+      );
+  });
+
   // ---- Feedback mechanism (public, validated, logged) ----
   app.post("/api/v1/feedback", async (request, reply) => {
     const body = parseOrThrow(feedbackSchema, request.body ?? {}, "Invalid feedback");
@@ -373,7 +450,7 @@ export function registerSiteRoutes(app: FastifyInstance, deps: RouteDeps): void 
             title: "Get started",
             description: "Sign in to open your guided setup checklist.",
             active: "onboarding",
-            body: `${pageHeader("Get started", "Sign in to see your checklist.", "The guided checklist reads your workspace live. Sign in first, then reopen it with your workspace.")}<p class="sub"><strong>What to do next:</strong> <code>POST /api/v1/auth/signin</code> with email + password, or open <code>/app/onboarding?workspaceId=…</code> with a Bearer session token. Nothing is lost — your clients and projects are unchanged.</p>`,
+            body: `${pageHeader("Get started", "Sign in to see your checklist.", "The guided checklist reads your workspace live. Sign in first, then reopen it with your workspace.")}<p class="btn-row"><a class="btn" href="/signin">Sign in →</a><a class="btn secondary" href="/signup">Create an account →</a></p><p class="sub">Nothing is lost — your clients and projects are unchanged.</p>`,
           }),
         );
     }

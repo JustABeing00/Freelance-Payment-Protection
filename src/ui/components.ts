@@ -191,7 +191,8 @@ export function unauthenticatedPage(): string {
 <body><a class="skip" href="#main-content">Skip to content</a><main class="wrap narrow" id="main-content" tabindex="-1"><div class="spot spot-violet reveal"><p class="spot-kicker">Sign in</p><p class="spot-title">Your workspace is waiting.</p></div><div class="card"><div class="card-body">
 <h1 class="h1">Sign in to continue</h1>
 <p class="sub">These pages read your workspace over the same session you use for the API. Sign in first, then come back.</p>
-<p class="sub"><strong>What to do next:</strong> <code>POST /api/v1/auth/signin</code> with email + password, or open with a <code>Bearer</code> session token. Your projects, money and timeline are unchanged — this is only the sign-in step.</p>
+<p class="btn-row"><a class="btn" href="/signin">Sign in →</a><a class="btn secondary" href="/signup">Create an account →</a></p>
+<p class="sub">Your projects, money and timeline are unchanged — this is only the sign-in step.</p>
 </div></div></main><script src="/app/app.js" defer></script></body></html>`;
 }
 
@@ -226,6 +227,7 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 .brand-link{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:10px}.brand-link:hover{text-decoration:none}
 .nav{display:flex;gap:4px;align-items:center;overflow-x:auto;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
 .navlink{padding:8px 14px;border-radius:var(--r-pill);color:var(--muted);text-decoration:none;font-size:14px;font-weight:500;letter-spacing:-.14px;white-space:nowrap;min-height:40px;display:inline-flex;align-items:center}.navlink:hover{color:var(--ink);text-decoration:none;background:var(--surface-1)}.navlink.is-active{background:var(--surface-2);color:var(--ink)}
+.navlink.nav-cta{background:var(--primary);color:var(--on-primary)}.navlink.nav-cta:hover{background:#e8e8e8;color:var(--on-primary)}
 main.wrap{padding-top:28px;padding-bottom:96px}
 .hero{padding:96px 0 40px;max-width:960px}.hero-tight{padding:64px 0 24px}
 .eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:13px;font-weight:500;color:var(--muted);margin:0 0 12px}
@@ -365,8 +367,46 @@ export const APP_JS = `// Workspace page interactions: progressive enhancement f
     if (form && form.hasAttribute("data-api-form")) {
       e.preventDefault();
       submitForm(form);
+    } else if (form && form.hasAttribute("data-auth")) {
+      e.preventDefault();
+      submitAuth(form);
     }
   });
+  async function submitAuth(form) {
+    // Browser signup/signin: the JSON API sets the session cookie; the page
+    // only reads the JSON body to decide where to land next.
+    const status = form.querySelector("[data-status]");
+    try {
+      if (status) status.textContent = "Working…";
+      const data = {};
+      new FormData(form).forEach((v, k) => {
+        data[k] = String(v);
+      });
+      const res = await fetch(form.action, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(data),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((body && body.error && body.error.message) || ("Request failed (" + res.status + ")"));
+      if (form.getAttribute("data-auth") === "signup") {
+        const ws = body && body.workspace && body.workspace.id;
+        if (!ws) throw new Error("Account created, but no workspace came back. Open Get started to continue.");
+        if (status) status.textContent = "Account created. Opening your workspace…";
+        window.location.assign("/app/projects?workspaceId=" + encodeURIComponent(ws));
+      } else {
+        if (status) status.textContent = "Signed in. Opening your workspace…";
+        const list = await fetch("/api/v1/workspaces", { credentials: "same-origin" });
+        const lj = await list.json().catch(() => ({}));
+        const first = lj && lj.workspaces && lj.workspaces[0] && lj.workspaces[0].id;
+        window.location.assign(first ? ("/app/projects?workspaceId=" + encodeURIComponent(first)) : "/app/onboarding");
+      }
+    } catch (err) {
+      if (status) status.textContent = String((err && err.message) || err);
+    }
+    return false;
+  }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initReveal);
   } else {

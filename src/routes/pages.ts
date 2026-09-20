@@ -126,6 +126,24 @@ export function registerPageRoutes(app: FastifyInstance, deps: RouteDeps): void 
     const query = request.query as Record<string, unknown>;
     const ws = typeof query.workspaceId === "string" ? query.workspaceId : "";
     if (ws) return reply.redirect(`/app/projects?workspaceId=${encodeURIComponent(ws)}`);
+    // Signed-in visitor with no workspace in the URL: land them in their
+    // first workspace instead of the static intro. Any failure (no session,
+    // no memberships) falls through to the intro page below.
+    try {
+      const token = extractSessionToken({
+        authorization: request.headers.authorization,
+        cookie: request.headers.cookie,
+      });
+      if (token) {
+        const { userId } = verifySessionToken({ token, sessionSecret: deps.sessionSecret });
+        const owned = await deps.store.listWorkspacesForUser(userId);
+        const first = owned[0];
+        if (first)
+          return await reply.redirect(`/app/projects?workspaceId=${encodeURIComponent(first.id)}`);
+      }
+    } catch {
+      // Fall through to the static landing page.
+    }
     const html = `<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="description" content="FreelancePaymentProtection — payment protection for freelancers: milestones, approvals, verified payments and evidence." /><meta name="theme-color" content="#090909" /><title>FreelancePaymentProtection</title><link rel="stylesheet" href="/app/styles.css" /></head>
 <body><a class="skip" href="#main-content">Skip to content</a><main class="wrap narrow" id="main-content" tabindex="-1"><div class="spot spot-violet reveal"><p class="spot-kicker">Workspace</p><p class="spot-title">Payment protection, calmly.</p></div><div class="card"><div class="card-body"><h1 class="h1">Four answers, always visible.</h1>
 <p class="sub">What money is safe, what is owed, what you should do next, and what happens automatically. Open your workspace projects or clients with <code>?workspaceId=…</code>.</p>${onboardingSteps(
