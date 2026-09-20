@@ -6,7 +6,7 @@
 
 Name: FreelancePaymentProtection
 Current Version: 0.19.0 (session 24: launch product — public home/pricing/FAQ/privacy/terms/contact/onboarding + feedback, 357 tests green; post-24 fixes: CI DATABASE_URL env, @prisma/client moved to dependencies for Docker runtime, Framer DESIGN.md dark-canvas redesign + scroll reveal, migration naming unification below)
-Current Stage: Session 25 — Neon migrations 0001→0011 applied clean on fresh branch (naming unified to camelCase); pending Render redeploy + freelance.lab.yashdev.tech custom domain + live verify
+Current Stage: Session 25 — LIVE at freelance.lab.yashdev.tech (/health db:"up"); remaining: homepage + first-workflow self-verify, Stripe later, uptime monitor
 
 ## Core Product Thesis
 
