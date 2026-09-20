@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+*.log
+.git/
+.github/
+tests/
+docs/
+prisma/migrations/**/migration.sql.lock

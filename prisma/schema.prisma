@@ -1,0 +1,574 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Tenant boundary: every business table carries workspaceId.
+// Money: integer minor units (amountCents) + ISO currency, never floats.
+// Time: UTC timestamptz. URLs: UUIDs (no sequential IDs).
+
+enum TrustTier {
+  low
+  standard
+  high
+}
+
+enum WorkspaceRole {
+  owner
+  member
+  accountant_readonly
+}
+
+enum PauseState {
+  active
+  paused
+}
+
+enum ReleaseCondition {
+  current_milestone_paid
+  all_milestones_paid
+  manual_release
+}
+
+enum PaymentState {
+  created
+  pending
+  processing
+  paid
+  received
+  partial
+  refunded
+  disputed
+  failed
+  cancelled
+}
+
+enum NotificationChannel {
+  email
+  sms
+  inapp
+}
+
+enum NotificationState {
+  queued
+  sent
+  delivered
+  failed
+  bounced
+}
+
+enum PlanState {
+  offered
+  accepted
+  active
+  completed
+  defaulted
+  superseded
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  displayName  String
+  passwordHash Json?
+  oauthSubject String?
+  mfaSecret    String? // nullable hook for post-MVP TOTP (security §2)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  lastLoginAt  DateTime? @db.Timestamptz(6)
+  memberships  WorkspaceMember[]
+  workspacesOwned Workspace[] @relation("WorkspaceOwner")
+
+  @@map("users")
+}
+
+model Workspace {
+  id               String            @id @default(uuid()) @db.Uuid
+  name             String
+  ownerUserId      String            @db.Uuid
+  owner            User              @relation("WorkspaceOwner", fields: [ownerUserId], references: [id])
+  defaultCurrency  String            @default("USD")
+  reminderDefaults Json              @default("{}")
+  createdAt        DateTime          @default(now()) @db.Timestamptz(6)
+  members          WorkspaceMember[]
+  clients          Client[]
+  projects         Project[]
+  milestones       Milestone[]
+  agreements       Agreement[]
+  payments         Payment[]
+  deliverables     Deliverable[]
+  approvals        Approval[]
+  events           Event[]
+  notifications    Notification[]
+  evidencePacks    EvidencePack[]
+  paymentPlans     PaymentPlan[]
+  portalLinks      PortalLink[]
+  notificationPreferences NotificationPreference[]
+  notificationOptOuts NotificationOptOut[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid()) @db.Uuid
+  userId      String        @db.Uuid
+  user        User          @relation(fields: [userId], references: [id])
+  workspaceId String        @db.Uuid
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id])
+  role        WorkspaceRole @default(owner)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
+
+  @@unique([userId, workspaceId])
+  @@map("workspace_members")
+}
+
+model Client {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  name        String
+  email       String
+  company     String?
+  phone       String?
+  billingEmail String?
+  billingAddress String?
+  timezone    String?
+  country     String?
+  trustTier   TrustTier @default(low)
+  notes       String?
+  status      String    @default("active")
+  archivedAt  DateTime? @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  projects    Project[]
+
+  @@unique([workspaceId, email])
+  @@index([workspaceId])
+  @@map("clients")
+}
+
+model Project {
+  id                 String           @id @default(uuid()) @db.Uuid
+  workspaceId        String           @db.Uuid
+  workspace          Workspace        @relation(fields: [workspaceId], references: [id])
+  clientId           String           @db.Uuid
+  client             Client           @relation(fields: [clientId], references: [id])
+  title              String
+  description        String?
+  currency           String           @default("USD")
+  totalValueCents    Int
+  startDate          DateTime?        @db.Timestamptz(6)
+  expectedCompletion DateTime?        @db.Timestamptz(6)
+  paymentTerms       String?
+  status             String           @default("active")
+  // Session 12: per-project reminder-policy override (raw JSON validated by
+  // domain/reminders.ts). `{}` means "inherit workspace defaults".
+  reminderPolicy     Json             @default("{}")
+  trustTierOverride  TrustTier?
+  pauseState         PauseState       @default(active)
+  pauseReason        String?
+  agreementVersionId String?          @db.Uuid
+  archivedAt         DateTime?        @db.Timestamptz(6)
+  createdAt          DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
+  milestones         Milestone[]
+  agreements         Agreement[]
+  payments           Payment[]
+  deliverables       Deliverable[]
+  approvals          Approval[]
+  events             Event[]
+  notifications      Notification[]
+  evidencePacks      EvidencePack[]
+  paymentPlans       PaymentPlan[]
+  portalLinks        PortalLink[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, clientId])
+  @@map("projects")
+}
+
+model Milestone {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @db.Uuid
+  workspace    Workspace @relation(fields: [workspaceId], references: [id])
+  projectId    String   @db.Uuid
+  project      Project  @relation(fields: [projectId], references: [id])
+  orderIndex   Int
+  title        String // UI: "Milestone N — {title}". Never "Deposit".
+  description  String?
+  amountCents  Int
+  currency     String   @default("USD")
+  dueDate      DateTime? @db.Timestamptz(6)
+  // Explicit state dimensions; Event log is authority (domain/milestone.ts).
+  // No booleans: each dimension is one enum value with guarded transitions.
+  workState    String   @default("draft")
+  paymentState String   @default("unpaid")
+  approvalState String  @default("none")
+  deliverableState String @default("locked")
+  unlockState  String   @default("locked")
+  appliedPaymentIds String[] @default([])
+  amountHistory Json    @default("[]")
+  approvedVersionId String?
+  currentVersionId  String?
+  releaseGate  ReleaseCondition @default(current_milestone_paid)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  payments     Payment[]
+  deliverables Deliverable[]
+  approvals    Approval[]
+  events       Event[]
+  plans        PaymentPlan[]
+
+  @@unique([projectId, orderIndex])
+  @@index([workspaceId, projectId])
+  @@map("milestones")
+}
+
+model Agreement {
+  id                     String    @id @default(uuid()) @db.Uuid
+  workspaceId            String    @db.Uuid
+  workspace              Workspace @relation(fields: [workspaceId], references: [id])
+  projectId              String    @db.Uuid
+  project                Project   @relation(fields: [projectId], references: [id])
+  version                Int
+  isCurrent              Boolean   @default(true)
+  // Lifecycle: draft → pending_acceptance → accepted → superseded | voided.
+  // Rows are content-immutable once written (see 0004 guard trigger);
+  // corrections are new versions, never edits.
+  status                 String    @default("draft")
+  termsText              String
+  paymentDueDays         Int       @default(7)
+  graceDays              Int       @default(3)
+  pauseAfterOverdueDays  Int       @default(7)
+  releaseCondition       ReleaseCondition @default(current_milestone_paid)
+  reminderPolicy         Json      @default("{}")
+  lateFeePolicy          String?
+  // Session 06 structured business terms (each maps to a numbered section
+  // in domain/agreement.ts buildAgreementText).
+  totalAmountCents       Int?
+  currency               String    @default("USD")
+  depositAmountCents     Int?
+  milestoneSchedule      Json      @default("[]")
+  paymentMethods         String[]  @default([])
+  latePaymentPolicy      Json      @default("{}")
+  workPauseDescription   String?
+  finalDeliveryDescription String?
+  ownershipMode          String?
+  ownershipDescription   String?
+  maxRevisionsPerMilestone Int?
+  extraRevisionPolicy    String?
+  cancellationNoticeDays Int?
+  cancellationKillFeeCents Int?
+  cancellationPolicy     String?
+  customClauses          String?
+  disclaimerVersion      String    @default("v1")
+  hash                   String
+  supersedesId           String?   @db.Uuid
+  sentAt                 DateTime? @db.Timestamptz(6)
+  acceptedAt             DateTime? @db.Timestamptz(6)
+  acceptedBy             String?
+  acceptIpHash           String?
+  acceptUaHash           String?
+  voidedAt               DateTime? @db.Timestamptz(6)
+  createdAt              DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([projectId, version])
+  @@index([workspaceId, projectId])
+  @@map("agreements")
+}
+
+model Payment {
+  id                String       @id @default(uuid()) @db.Uuid
+  workspaceId       String       @db.Uuid
+  workspace         Workspace    @relation(fields: [workspaceId], references: [id])
+  projectId         String       @db.Uuid
+  project           Project      @relation(fields: [projectId], references: [id])
+  milestoneId       String?      @db.Uuid
+  milestone         Milestone?   @relation(fields: [milestoneId], references: [id])
+  provider          String       @default("stripe")
+  providerPaymentId String
+  amountCents       Int
+  currency          String       @default("USD")
+  state             PaymentState @default(pending)
+  reversesId        String?      @db.Uuid
+  idempotencyKey    String       @unique
+  rawWebhookRef     String?
+  receivedAt        DateTime?    @db.Timestamptz(6)
+  createdAt         DateTime     @default(now()) @db.Timestamptz(6)
+
+  @@unique([provider, providerPaymentId])
+  @@index([workspaceId, projectId])
+  @@index([workspaceId, milestoneId])
+  @@map("payments")
+}
+
+model Deliverable {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @db.Uuid
+  workspace    Workspace @relation(fields: [workspaceId], references: [id])
+  projectId    String   @db.Uuid
+  project      Project  @relation(fields: [projectId], references: [id])
+  milestoneId  String   @db.Uuid
+  milestone    Milestone @relation(fields: [milestoneId], references: [id])
+  title        String
+  description  String?
+  // Controlled-delivery lifecycle (domain/deliverables.ts):
+  // draft → submitted → preview_available → client_review → approved →
+  // payment_pending → paid → released. REVIEW (preview) is separate from
+  // OWN (finals, only when released).
+  status       String   @default("draft")
+  deliveryState String  @default("locked")
+  // Web-project staging: a staging URL can be reviewed early; production
+  // handoff (transfer) requires release first.
+  stagingUrl   String?
+  stagingTransferState String @default("none")
+  currentVersionNo Int @default(0)
+  approvedVersionNo Int?
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  versions     DeliverableVersion[]
+  events       Event[]
+
+  @@index([workspaceId, milestoneId])
+  @@index([workspaceId, projectId])
+  @@map("deliverables")
+}
+
+model DeliverableVersion {
+  id                String      @id @default(uuid()) @db.Uuid
+  deliverableId     String      @db.Uuid
+  deliverable       Deliverable @relation(fields: [deliverableId], references: [id])
+  versionNo         Int
+  description       String?
+  // Mixed submission payload: files (safe-handled object keys) + links
+  // (https-only) + preview text + staging URL. At least one required.
+  files             Json        @default("[]")
+  links             String[]    @default([])
+  previewText       String?
+  stagingUrl        String?
+  previewArtifactRef String?
+  finalArtifactRef   String?
+  previewContentType String?
+  previewSizeBytes   Int?
+  finalContentType   String?
+  finalSizeBytes     Int?
+  sha256Preview     String?
+  sha256Final       String?
+  createdBy         String
+  createdAt         DateTime    @default(now()) @db.Timestamptz(6)
+  supersedesId      String?     @db.Uuid
+  approvals         Approval[]
+
+  @@unique([deliverableId, versionNo])
+  @@map("deliverable_versions")
+}
+
+model Approval {
+  id                  String             @id @default(uuid()) @db.Uuid
+  workspaceId         String             @db.Uuid
+  workspace           Workspace          @relation(fields: [workspaceId], references: [id])
+  projectId           String             @db.Uuid
+  project             Project            @relation(fields: [projectId], references: [id])
+  milestoneId         String             @db.Uuid
+  milestone           Milestone          @relation(fields: [milestoneId], references: [id])
+  // Formal client approval (Session 11): an append-only decision event pinned
+  // to ONE version. Old rows stay historically true for their version; only
+  // the latest row pinning the CURRENT version authorizes release.
+  deliverableId       String?            @db.Uuid
+  deliverableVersionId String?           @db.Uuid
+  deliverableVersion  DeliverableVersion? @relation(fields: [deliverableVersionId], references: [id])
+  // Deliverable version number (when the subject is a deliverable).
+  versionNo           Int?
+  // Milestone `currentVersionId` string at decision time (milestone-only
+  // approvals without a deliverable row).
+  versionRef          String?
+  // Client decision: approved | revision_requested | rejected | disputed.
+  decision            String             @default("approved")
+  approverRef         String
+  note                String?
+  actorType           String             @default("client")
+  actorId             String?
+  // Hashed device metadata only (sha256) — raw IPs / user-agents never stored.
+  ipHash              String?
+  uaHash              String?
+  createdAt           DateTime           @default(now()) @db.Timestamptz(6)
+
+  @@index([projectId, milestoneId])
+  @@index([deliverableId])
+  @@map("approvals")
+}
+
+model Event {
+  id             String   @id @default(uuid()) @db.Uuid
+  seq            BigInt   @default(autoincrement())
+  workspaceId    String   @db.Uuid
+  workspace      Workspace @relation(fields: [workspaceId], references: [id])
+  projectId      String   @db.Uuid
+  project        Project  @relation(fields: [projectId], references: [id])
+  milestoneId    String?  @db.Uuid
+  milestone      Milestone? @relation(fields: [milestoneId], references: [id])
+  deliverableId  String?  @db.Uuid
+  deliverable    Deliverable? @relation(fields: [deliverableId], references: [id])
+  actorType      String
+  actorId        String?
+  type           String
+  payload        Json     @default("{}")
+  occurredAt     DateTime @db.Timestamptz(6)
+  recordedAt     DateTime @default(now()) @db.Timestamptz(6)
+  ipHash         String?
+  uaHash         String?
+  idempotencyKey String?  @unique
+
+  @@index([workspaceId, projectId, seq])
+  @@index([workspaceId, projectId, occurredAt])
+  @@index([type])
+  @@map("events")
+}
+
+model Notification {
+  id            String            @id @default(uuid()) @db.Uuid
+  workspaceId   String            @db.Uuid
+  workspace     Workspace         @relation(fields: [workspaceId], references: [id])
+  projectId     String?           @db.Uuid
+  project       Project?          @relation(fields: [projectId], references: [id])
+  milestoneId   String?
+  channel       NotificationChannel @default(email)
+  template      String
+  // Session 12 reminder engine: full audit trail per automation.
+  templateVersion String          @default("v1")
+  subject       String?
+  bodySnapshot  String?
+  recipientName String?
+  toRef         String
+  state         NotificationState @default(queued)
+  providerMsgId String?
+  scheduledFor  DateTime          @db.Timestamptz(6)
+  sentAt        DateTime?         @db.Timestamptz(6)
+  deliveredAt   DateTime?         @db.Timestamptz(6)
+  canceledAt    DateTime?         @db.Timestamptz(6)
+  attemptCount  Int               @default(0)
+  lastError     String?
+  nextActionAt  DateTime?         @db.Timestamptz(6)
+  nextActionLabel String?
+  trigger       String            @default("schedule")
+  policyStep    String?
+  policyVersion Int?
+  // Session 18 production-grade notifications: transactional kind/category
+  // (see domain/notifications.ts) + in-app read marker. `kind`/`category`
+  // default to the reminder engine so pre-existing rows stay valid; new
+  // transactional rows always set them explicitly.
+  kind          String            @default("reminder")
+  category      String            @default("reminders")
+  readAt        DateTime?         @db.Timestamptz(6)
+  idempotencyKey String?          @unique
+  createdAt     DateTime          @default(now()) @db.Timestamptz(6)
+
+  @@index([workspaceId, state, scheduledFor])
+  @@index([workspaceId, projectId])
+  @@index([workspaceId, channel, state])
+  @@map("notifications")
+}
+
+// Session 18: per-user notification preferences. One row per
+// (workspace, user, category, channel); absent rows mean "enabled".
+// Freelancers tune these in the notification center; the delivery gate
+// (domain/notifications.ts shouldDeliver) consults them before any send.
+model NotificationPreference {
+  id          String              @id @default(uuid()) @db.Uuid
+  workspaceId String              @db.Uuid
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id])
+  userId      String              @db.Uuid
+  category    String
+  channel     NotificationChannel
+  enabled     Boolean             @default(true)
+  createdAt   DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([workspaceId, userId, category, channel])
+  @@index([workspaceId, userId])
+  @@map("notification_preferences")
+}
+
+// Session 18: client email opt-outs (legally required unsubscribe path for
+// transactional mail). One row per (workspace, normalized email, category)
+// where category may be a concrete category or "all". Opted-out addresses
+// never receive that category by email; in-app freelancer notices continue.
+model NotificationOptOut {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  email       String
+  category    String   @default("all")
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([workspaceId, email, category])
+  @@index([workspaceId, email])
+  @@map("notification_opt_outs")
+}
+
+model EvidencePack {
+  id                  String   @id @default(uuid()) @db.Uuid
+  workspaceId         String   @db.Uuid
+  workspace           Workspace @relation(fields: [workspaceId], references: [id])
+  projectId           String   @db.Uuid
+  project             Project  @relation(fields: [projectId], references: [id])
+  generatedAt         DateTime @default(now()) @db.Timestamptz(6)
+  generatedBy         String
+  agreementVersionHashes String[]
+  eventSeqFrom        BigInt
+  eventSeqTo          BigInt
+  artifactRef         String
+  sha256              String
+  disclaimerVersion   String   @default("v1")
+
+  @@index([workspaceId, projectId])
+  @@map("evidence_packs")
+}
+
+model PaymentPlan {
+  id                  String    @id @default(uuid()) @db.Uuid
+  workspaceId         String    @db.Uuid
+  workspace           Workspace @relation(fields: [workspaceId], references: [id])
+  projectId           String    @db.Uuid
+  project             Project   @relation(fields: [projectId], references: [id])
+  milestoneId         String    @db.Uuid
+  milestone           Milestone @relation(fields: [milestoneId], references: [id])
+  // Original obligation snapshot (write-once): the outstanding balance the
+  // schedule must cover exactly. Never edited — modified schedules are new
+  // plan versions (see version/supersedesId) with their own snapshot.
+  originalAmountCents Int
+  currency            String    @default("USD")
+  installments        Json      @default("[]")
+  state               PlanState @default(offered)
+  // Plan version within its (project, milestone) scope; a modified schedule
+  // supersedes the previous version instead of editing it.
+  version             Int       @default(1)
+  supersedesId        String?   @db.Uuid
+  note                String?
+  offeredAt           DateTime  @default(now()) @db.Timestamptz(6)
+  acceptedAt          DateTime? @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([workspaceId, milestoneId])
+  @@index([workspaceId, projectId])
+  @@map("payment_plans")
+}
+
+model PortalLink {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  projectId   String    @db.Uuid
+  project     Project   @relation(fields: [projectId], references: [id])
+  tokenHash   String    @unique // sha256 of the raw magic-link token
+  expiresAt   DateTime  @db.Timestamptz(6)
+  revokedAt   DateTime? @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([workspaceId, projectId])
+  @@map("portal_links")
+}

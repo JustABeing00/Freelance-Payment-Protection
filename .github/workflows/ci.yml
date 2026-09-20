@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx prisma validate
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format
+      - run: npm run build
+      - run: npm test
+        env:
+          DATABASE_URL: postgresql://fpp:fpp_changeme@localhost:5432/fpp_test
+          SESSION_SECRET: ci_test_session_secret_that_is_long_enough
+          APP_BASE_URL: http://localhost:3000
