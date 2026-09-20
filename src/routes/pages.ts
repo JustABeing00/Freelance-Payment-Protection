@@ -126,9 +126,9 @@ export function registerPageRoutes(app: FastifyInstance, deps: RouteDeps): void 
     const query = request.query as Record<string, unknown>;
     const ws = typeof query.workspaceId === "string" ? query.workspaceId : "";
     if (ws) return reply.redirect(`/app/projects?workspaceId=${encodeURIComponent(ws)}`);
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="description" content="FreelancePaymentProtection — payment protection for freelancers: milestones, approvals, verified payments and evidence." /><title>FreelancePaymentProtection</title><link rel="stylesheet" href="/app/styles.css" /></head>
-<body><a class="skip" href="#main-content">Skip to content</a><main class="wrap narrow" id="main-content" tabindex="-1"><div class="card"><div class="card-body"><h1 class="h1">Payment protection, calmly.</h1>
-<p class="sub">Four answers, always visible: what money is safe, what is owed, what you should do next, and what happens automatically. Open your workspace projects or clients with <code>?workspaceId=…</code>.</p>${onboardingSteps(
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="description" content="FreelancePaymentProtection — payment protection for freelancers: milestones, approvals, verified payments and evidence." /><meta name="theme-color" content="#090909" /><title>FreelancePaymentProtection</title><link rel="stylesheet" href="/app/styles.css" /></head>
+<body><a class="skip" href="#main-content">Skip to content</a><main class="wrap narrow" id="main-content" tabindex="-1"><div class="spot spot-violet reveal"><p class="spot-kicker">Workspace</p><p class="spot-title">Payment protection, calmly.</p></div><div class="card"><div class="card-body"><h1 class="h1">Four answers, always visible.</h1>
+<p class="sub">What money is safe, what is owed, what you should do next, and what happens automatically. Open your workspace projects or clients with <code>?workspaceId=…</code>.</p>${onboardingSteps(
       [
         {
           title: "Add a client",
@@ -147,7 +147,7 @@ export function registerPageRoutes(app: FastifyInstance, deps: RouteDeps): void 
           body: "Only verified provider receipts count. Finals release automatically on approval + payment.",
         },
       ],
-    )}<p class="sub">No threatening language anywhere: overdue reads as a calm follow-up, never a collection notice. Every money number cites verified receipts.</p></div></div></main></body></html>`;
+    )}<p class="sub">No threatening language anywhere: overdue reads as a calm follow-up, never a collection notice. Every money number cites verified receipts.</p></div></div></main><script src="/app/app.js" defer></script></body></html>`;
     return reply.header("content-type", "text/html; charset=utf-8").send(html);
   });
 

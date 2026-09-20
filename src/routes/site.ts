@@ -68,32 +68,40 @@ function publicLayout(args: {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="description" content="${escapeHtml(description)}" />
+<meta name="theme-color" content="#090909" />
 <title>${escapeHtml(title)} — FreelancePaymentProtection</title>
 <link rel="stylesheet" href="/app/styles.css" />
 </head>
 <body>
 <a class="skip" href="#main-content">Skip to content</a>
-<header class="topbar"><div class="wrap topbar-inner"><div class="brand"><a href="/" style="color:inherit;text-decoration:none">FreelancePaymentProtection</a></div><nav class="nav" aria-label="Site">
+<header class="topbar"><div class="wrap topbar-inner"><div class="brand"><a class="brand-link" href="/"><span class="brand-dot" aria-hidden="true"></span>FreelancePaymentProtection</a></div><nav class="nav" aria-label="Site">
 ${nav("pricing", "/pricing", "Pricing")}
 ${nav("faq", "/faq", "FAQ")}
 ${nav("onboarding", "/onboarding", "Get started")}
 ${nav("contact", "/contact", "Contact")}
 </nav></div></header>
 <main class="wrap" id="main-content" tabindex="-1">${body}</main>
-<footer class="wrap foot"><p><a href="/pricing">Pricing</a> · <a href="/faq">FAQ</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/contact">Contact</a> · <a href="/onboarding">Get started</a></p><p>${escapeHtml(HONEST_FOOTER)}</p></footer>
+<footer class="wrap foot"><p class="foot-links"><span class="brand-mini">FreelancePaymentProtection</span> · <a href="/pricing">Pricing</a> · <a href="/faq">FAQ</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/contact">Contact</a> · <a href="/onboarding">Get started</a></p><p>${escapeHtml(HONEST_FOOTER)}</p></footer>
 <script src="/app/app.js" defer></script>
 </body>
 </html>`;
 }
 
 function pageHeader(eyebrow: string, title: string, sub: string): string {
-  return `<p class="eyebrow">${escapeHtml(eyebrow)}</p><h1 class="h1">${escapeHtml(title)}</h1><p class="sub">${escapeHtml(sub)}</p>`;
+  return `<p class="eyebrow reveal">${escapeHtml(eyebrow)}</p><h1 class="h1 reveal" data-rv="1">${escapeHtml(title)}</h1><p class="sub reveal" data-rv="2">${escapeHtml(sub)}</p>`;
 }
 
 function homeBody(): string {
-  return `${pageHeader("Payment-protection workflow", "Get paid for freelance work, without chasing.", "Milestones, approvals, verified receipts, calm reminders, and a complete record — finals stay locked until approval + verified payment are both recorded.")}
-<div class="nextaction"><strong>What this is:</strong> an organized workflow that ties payment to project progress. <strong>What it is not:</strong> a promise of payment, legal advice, or an escrow service.</div>
-<section class="card"><div class="card-head"><h2>How a project flows</h2></div><div class="card-body">${onboardingSteps(
+  return `<section class="hero"><p class="eyebrow reveal">Payment-protection workflow</p>
+<h1 class="hero-display reveal" data-rv="1">Get paid for freelance work, without chasing.</h1>
+<p class="hero-sub reveal" data-rv="2">Milestones, approvals, verified receipts, calm reminders, and a complete record — finals stay locked until approval + verified payment are both recorded.</p>
+<div class="hero-ctas reveal" data-rv="3"><a class="btn" href="/onboarding">Start the guided setup →</a><a class="btn secondary" href="/pricing">See pricing →</a></div></section>
+<div class="nextaction reveal"><strong>What this is:</strong> an organized workflow that ties payment to project progress. <strong>What it is not:</strong> a promise of payment, legal advice, or an escrow service.</div>
+<div class="spot-grid"><div class="spot spot-violet reveal"><p class="spot-kicker">Milestones</p><p class="spot-title">Every payment has progress attached.</p><p class="spot-body">Terms are versioned and hash-pinned, so the amount, the work, and the approval always agree.</p></div>
+<div class="spot spot-magenta reveal" data-rv="1"><p class="spot-kicker">Approvals</p><p class="spot-title">Clients approve the exact version.</p><p class="spot-body">Previews are for review; approval pins that version. New versions reset cleanly.</p></div>
+<div class="spot spot-orange reveal"><p class="spot-kicker">Verified payments</p><p class="spot-title">Only provider receipts count.</p><p class="spot-body">Hosted checkout. “I’ve paid” notes stay unverified until the provider confirms.</p></div>
+<div class="spot spot-coral reveal" data-rv="1"><p class="spot-kicker">Evidence</p><p class="spot-title">Finals unlock, the record stays.</p><p class="spot-body">Release needs approval + verified payment. Every step stays in an append-only timeline.</p></div></div>
+<section class="card reveal"><div class="card-head"><h2>How a project flows</h2></div><div class="card-body">${onboardingSteps(
     [
       {
         title: "Agree on milestones",
@@ -112,8 +120,8 @@ function homeBody(): string {
         body: "Release needs approval + verified payment. Every step stays in an append-only timeline.",
       },
     ],
-  )}<p class="sub">If payment runs late: calm automatic follow-ups first, then an exact-sum payment plan, then recorded work pause, then a factual evidence export. Each step is recorded; nothing is edited.</p><p><a class="btn" href="/onboarding" style="display:inline-block;text-decoration:none">Start the guided setup →</a> <a href="/pricing">See pricing →</a></p></div></section>
-${card("What you can check on every project", `<table class="table"><tbody><tr><th scope="row">Money</th><td>Verified-paid vs outstanding, per milestone and per project. Claims marked “I’ve paid” stay unverified until the provider confirms.</td></tr><tr><th scope="row">Approvals</th><td>Version-pinned decisions: approved, revision requested, rejected, or disputed — new versions reset cleanly.</td></tr><tr><th scope="row">Delivery</th><td>Previews for review early; final files only when released. Previews are a speed bump, not copy protection.</td></tr><tr><th scope="row">Record</th><td>Chronological timeline plus a factual export for your records or a mediator. Corrections arrive as new entries, never edits.</td></tr></tbody></table>`)}
+  )}<p class="sub">If payment runs late: calm automatic follow-ups first, then an exact-sum payment plan, then recorded work pause, then a factual evidence export. Each step is recorded; nothing is edited.</p><p class="btn-row"><a class="btn" href="/onboarding">Start the guided setup →</a><a class="btn secondary" href="/pricing">See pricing →</a></p></div></section>
+${card("What you can check on every project", `<div class="table-scroll"><table class="table"><tbody><tr><th scope="row">Money</th><td>Verified-paid vs outstanding, per milestone and per project. Claims marked “I’ve paid” stay unverified until the provider confirms.</td></tr><tr><th scope="row">Approvals</th><td>Version-pinned decisions: approved, revision requested, rejected, or disputed — new versions reset cleanly.</td></tr><tr><th scope="row">Delivery</th><td>Previews for review early; final files only when released. Previews are a speed bump, not copy protection.</td></tr><tr><th scope="row">Record</th><td>Chronological timeline plus a factual export for your records or a mediator. Corrections arrive as new entries, never edits.</td></tr></tbody></table></div>`)}
 ${card("Honest limits", `<p class="sub">This product does not hold funds, does not give legal advice, and does not predict or promise dispute outcomes. Payment confirmation depends on your payment provider; record-keeping depends on using the workflow (send terms, schedule reminders, record approvals). Enforcement of any agreement depends on your jurisdiction and the facts.</p>`)}`;
 }
 
@@ -237,7 +245,7 @@ function onboardingPublicBody(): string {
         body: "Share a preview → client approves that version → verified payment arrives → finals unlock. Late payers get calm follow-ups, an exact-sum plan, or a recorded pause.",
       },
     ],
-  )}<p><a class="btn" href="/app/onboarding" style="display:inline-block;text-decoration:none">Open the guided checklist →</a></p><p class="sub">Signed in? The checklist reads your workspace live and shows what is done. New here? Create an account via <code>POST /api/v1/auth/signup</code>, then open the checklist with <code>?workspaceId=…</code>.</p></div></section>
+  )}<p class="btn-row"><a class="btn" href="/app/onboarding">Open the guided checklist →</a></p><p class="sub">Signed in? The checklist reads your workspace live and shows what is done. New here? Create an account via <code>POST /api/v1/auth/signup</code>, then open the checklist with <code>?workspaceId=…</code>.</p></div></section>
 ${card("What happens automatically", `<p class="sub">Due-date reminders, verified-receipt checks, overdue follow-ups, and the evidence timeline run once milestones have due dates. You act only on approvals, revisions, and payment plans.</p>`, `<span class="pill pill-info">Automatic</span>`)}
 ${card("If a payment runs late", `<p class="sub">Follow-ups stay calm and system-voiced. Offer an exact-sum plan if cash flow is the issue, pause work with a recorded reason if the terms allow, and export the factual record when you need it for your files or a mediator.</p>`)}`;
 }
@@ -386,7 +394,7 @@ export function registerSiteRoutes(app: FastifyInstance, deps: RouteDeps): void 
     ).length;
     const ws = escapeHtml(identity.workspaceId);
     const step = (done: boolean, title: string, bodyText: string, href?: string): string =>
-      `<div class="row"><div class="row-title">${done ? "✓" : "○"} ${escapeHtml(title)}</div><div class="row-meta">${escapeHtml(bodyText)}</div>${href ? `<div class="row-meta"><a href="${href}">Open →</a></div>` : ""}</div>`;
+      `<div class="row reveal"><div class="row-title">${done ? "✓" : "○"} ${escapeHtml(title)}</div><div class="row-meta">${escapeHtml(bodyText)}</div>${href ? `<div class="row-meta"><a href="${href}">Open →</a></div>` : ""}</div>`;
     const html = publicLayout({
       title: "Your setup checklist",
       description: "Guided setup checklist reading your workspace live.",

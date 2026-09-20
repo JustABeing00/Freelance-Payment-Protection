@@ -230,9 +230,40 @@ async function loadPortalMilestone(
   return row;
 }
 
-export const PORTAL_JS = `// Client portal interactions (Session 07): approve / revision / pay / accept.
-// Token travels as a hidden form field; the page itself was loaded with ?token=.
+export const PORTAL_JS = `// Client portal interactions: approve / revision / pay / accept plus
+// Framer-style scroll reveal. Token travels as a hidden form field; the
+// page itself was loaded with ?token=. No framework, no tracking.
 (function () {
+  document.documentElement.classList.add("js");
+  var reduceMotion = false;
+  try {
+    reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch (err) {}
+  function initReveal() {
+    var els = Array.prototype.slice.call(document.querySelectorAll(".reveal"));
+    if (els.length === 0) return;
+    if (reduceMotion || !("IntersectionObserver" in window)) {
+      els.forEach(function (el) { el.classList.add("is-visible"); });
+      return;
+    }
+    var io = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            io.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
+    );
+    els.forEach(function (el) { io.observe(el); });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initReveal);
+  } else {
+    initReveal();
+  }
   function portalToken(form) {
     var input = form.querySelector('input[name="token"]');
     return input ? input.value : "";
@@ -276,7 +307,7 @@ function renderPortalPage(args: {
   const { projectId, token, view } = args;
   const t = escapeHtml(token);
   const money = (cents: number): string => formatMoney(cents, view.currency);
-  const howItWorks = `<section class="card"><div class="card-head"><h2>How this works</h2></div><div class="card-body"><ol class="steps">
+  const howItWorks = `<section class="card reveal"><div class="card-head"><h2>How this works</h2></div><div class="card-body"><ol class="steps">
 <li class="step"><span class="step-n" aria-hidden="true">1</span><span><strong>Review the preview</strong><br /><span class="stat-hint">Previews are for review only — screenshots aside, finals stay locked.</span></span></li>
 <li class="step"><span class="step-n" aria-hidden="true">2</span><span><strong>Approve, or request changes</strong><br /><span class="stat-hint">Approval pins that exact version, with your note when changes are needed.</span></span></li>
 <li class="step"><span class="step-n" aria-hidden="true">3</span><span><strong>Complete payment</strong><br /><span class="stat-hint">Hosted checkout. Only verified provider receipts count — “I’ve paid” notes stay unverified until confirmed.</span></span></li>
@@ -288,7 +319,7 @@ function renderPortalPage(args: {
 <div class="money-cell money-warn"><div class="stat-label">What is currently due</div><div class="stat-value">${money(view.dueNowCents)}</div><div class="stat-hint">${escapeHtml(view.focusHeadline)}</div></div>
 <div class="money-cell"><div class="stat-label">Remaining balance</div><div class="stat-value">${money(view.remainingCents)}</div><div class="stat-hint">${view.progressPercent}% collected</div></div>
 </section>
-<div class="progress" role="progressbar" aria-valuenow="${view.progressPercent}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${view.progressPercent}%"></div></div>
+<progress class="progress" max="100" value="${view.progressPercent}" aria-label="${view.progressPercent}% collected">${view.progressPercent}%</progress>
 <div class="stat-hint">${view.progressPercent}% collected · verified receipts only</div>`;
 
   const approved = view.milestones.filter((m) =>
@@ -296,8 +327,8 @@ function renderPortalPage(args: {
   );
   const approvedCard =
     approved.length === 0
-      ? `<section class="card"><div class="card-head"><h2>What you have approved</h2></div><div class="card-body"><p class="sub">Nothing approved yet. When a preview is ready, approve it here — or request changes with a short note so the studio knows what to fix.</p></div></section>`
-      : `<section class="card"><div class="card-head"><h2>What you have approved</h2></div><div class="card-body"><table class="table"><tbody>${approved
+      ? `<section class="card reveal"><div class="card-head"><h2>What you have approved</h2></div><div class="card-body"><p class="sub">Nothing approved yet. When a preview is ready, approve it here — or request changes with a short note so the studio knows what to fix.</p></div></section>`
+      : `<section class="card reveal"><div class="card-head"><h2>What you have approved</h2></div><div class="card-body"><table class="table"><tbody>${approved
           .map(
             (m) =>
               `<tr><th scope="row">Milestone ${m.position} — ${escapeHtml(m.title)}</th><td>${escapeHtml(m.stage)} · ${escapeHtml(m.paymentLabel)} · ${escapeHtml(m.deliveryLabel)}</td></tr>`,
@@ -311,11 +342,11 @@ function renderPortalPage(args: {
   const steps =
     view.nextSteps.length === 0
       ? ""
-      : `<section class="card"><div class="card-head"><h2>What happens next</h2></div><div class="card-body"><ul class="timeline">${view.nextSteps
+      : `<section class="card reveal"><div class="card-head"><h2>What happens next</h2></div><div class="card-body"><ul class="timeline">${view.nextSteps
           .map((s) => `<li><span>${escapeHtml(s)}</span></li>`)
           .join("")}</ul></div></section>`;
 
-  const milestones = `<section class="card"><div class="card-head"><h2>Milestone timeline</h2></div><div class="card-body">
+  const milestones = `<section class="card reveal"><div class="card-head"><h2>Milestone timeline</h2></div><div class="card-body">
 <table class="table"><thead><tr><th>Milestone</th><th>Amount</th><th>Status</th><th>Payment</th><th>Delivery</th><th>Your action</th></tr></thead><tbody>
 ${view.milestones
   .map((m) => {
@@ -336,14 +367,14 @@ ${view.milestones
     } else {
       actions.push(`<span class="stat-hint">No action needed</span>`);
     }
-    return `<tr><td><strong>Milestone ${m.position} — ${escapeHtml(m.title)}</strong><div class="stat-hint">${escapeHtml(m.headline)}. ${escapeHtml(m.detail)}</div></td><td>${escapeHtml(money(m.amountCents))}</td><td>${escapeHtml(m.stage)}</td><td>${escapeHtml(m.paymentLabel)}</td><td>${escapeHtml(m.deliveryLabel)}</td><td>${actions.join("<div style='height:8px'></div>")}</td></tr>`;
+    return `<tr><td><strong>Milestone ${m.position} — ${escapeHtml(m.title)}</strong><div class="stat-hint">${escapeHtml(m.headline)}. ${escapeHtml(m.detail)}</div></td><td>${escapeHtml(money(m.amountCents))}</td><td>${escapeHtml(m.stage)}</td><td>${escapeHtml(m.paymentLabel)}</td><td>${escapeHtml(m.deliveryLabel)}</td><td>${actions.join('<div class="stack-gap"></div>')}</td></tr>`;
   })
   .join("")}</tbody></table></div></section>`;
 
   const payments =
     view.payments.length === 0
-      ? `<section class="card"><div class="card-head"><h2>What you have paid</h2></div><div class="card-body"><p class="sub">No verified payments yet. Payments appear here once confirmed by the payment provider — “I’ve paid” notes stay marked as confirming until then.</p></div></section>`
-      : `<section class="card"><div class="card-head"><h2>What you have paid</h2></div><div class="card-body"><table class="table"><tbody>${view.payments
+      ? `<section class="card reveal"><div class="card-head"><h2>What you have paid</h2></div><div class="card-body"><p class="sub">No verified payments yet. Payments appear here once confirmed by the payment provider — “I’ve paid” notes stay marked as confirming until then.</p></div></section>`
+      : `<section class="card reveal"><div class="card-head"><h2>What you have paid</h2></div><div class="card-body"><table class="table"><tbody>${view.payments
           .map(
             (p) =>
               `<tr><th scope="row">${escapeHtml(p.milestoneTitle)}</th><td>${escapeHtml(money(p.amountCents))} · ${escapeHtml(p.stateLabel)}</td></tr>`,
@@ -353,9 +384,9 @@ ${view.milestones
           )}</tbody></table><p class="stat-hint">Verified receipts only. If you paid but nothing shows yet, the provider confirmation is still on its way — nothing is lost.</p></div></section>`;
 
   const agreement = view.agreement
-    ? `<section class="card"><div class="card-head"><h2>Your agreement (v${view.agreement.version})</h2><span class="pill pill-info">${escapeHtml(view.agreement.statusLabel)}</span></div><div class="card-body">
+    ? `<section class="card reveal"><div class="card-head"><h2>Your agreement (v${view.agreement.version})</h2><span class="pill pill-info">${escapeHtml(view.agreement.statusLabel)}</span></div><div class="card-body">
 <p class="sub">${escapeHtml(view.agreement.whatItMeans)}</p>
-<details><summary>Read the full terms</summary><pre style="white-space:pre-wrap;font:inherit">${escapeHtml(view.agreement.termsText)}</pre>
+<details><summary>Read the full terms</summary><pre class="terms-pre">${escapeHtml(view.agreement.termsText)}</pre>
 <p class="stat-hint">Reference hash: ${escapeHtml(view.agreement.hash.slice(0, 16))}…</p></details>
 ${
   view.agreement.status === "pending_acceptance"
@@ -368,7 +399,7 @@ ${
   const locks =
     view.lockedExplanations.length === 0
       ? ""
-      : `<section class="card"><div class="card-head"><h2>What is locked and why</h2></div><div class="card-body"><table class="table"><tbody>${view.lockedExplanations
+      : `<section class="card reveal"><div class="card-head"><h2>What is locked and why</h2></div><div class="card-body"><table class="table"><tbody>${view.lockedExplanations
           .map(
             (l) =>
               `<tr><th scope="row">${escapeHtml(l.title)}</th><td>${escapeHtml(l.why)} ${escapeHtml(l.unlocksWhen)}</td></tr>`,
@@ -377,14 +408,14 @@ ${
 
   const needsTime =
     view.paymentStatus === "overdue" || view.paymentStatus === "disputed"
-      ? `<section class="card"><div class="card-head"><h2>If you need more time</h2></div><div class="card-body"><p class="sub">Cash flow happens. Ask your studio about a payment plan — smaller dated amounts that sum exactly to what is owed. Nothing is forgiven or added silently, and every change is recorded here.</p><p class="stat-hint">No penalties are applied from this page. The next step is a conversation, not a charge.</p></div></section>`
+      ? `<section class="card reveal"><div class="card-head"><h2>If you need more time</h2></div><div class="card-body"><p class="sub">Cash flow happens. Ask your studio about a payment plan — smaller dated amounts that sum exactly to what is owed. Nothing is forgiven or added silently, and every change is recorded here.</p><p class="stat-hint">No penalties are applied from this page. The next step is a conversation, not a charge.</p></div></section>`
       : "";
-  const automatic = `<section class="card"><div class="card-head"><h2>What happens automatically</h2></div><div class="card-body"><p class="sub">Receipts are verified with the payment provider, final files unlock on approval + payment, and calm reminders arrive before anything is overdue. You never need to ask “did it go through?” — this page updates when confirmation lands.</p></div></section>`;
+  const automatic = `<section class="card reveal"><div class="card-head"><h2>What happens automatically</h2></div><div class="card-body"><p class="sub">Receipts are verified with the payment provider, final files unlock on approval + payment, and calm reminders arrive before anything is overdue. You never need to ask “did it go through?” — this page updates when confirmation lands.</p></div></section>`;
 
   const activity =
     view.activity.length === 0
-      ? `<section class="card"><div class="card-head"><h2>Updates</h2></div><div class="card-body"><p class="sub">Updates from your studio will appear here.</p></div></section>`
-      : `<section class="card"><div class="card-head"><h2>Updates</h2></div><div class="card-body"><ul class="timeline">${view.activity
+      ? `<section class="card reveal"><div class="card-head"><h2>Updates</h2></div><div class="card-body"><p class="sub">Updates from your studio will appear here.</p></div></section>`
+      : `<section class="card reveal"><div class="card-head"><h2>Updates</h2></div><div class="card-body"><ul class="timeline">${view.activity
           .map(
             (a) =>
               `<li><time>${escapeHtml(a.when.slice(0, 10))}</time><span><strong>${escapeHtml(a.label)}</strong> <span class="stat-hint">· ${escapeHtml(a.actorLabel)}</span></span></li>`,
@@ -396,14 +427,15 @@ ${
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="description" content="Private client portal — review previews, approve work and complete payment for your project." />
 <meta name="robots" content="noindex, nofollow" />
+<meta name="theme-color" content="#090909" />
 <title>${escapeHtml(view.projectTitle)} — Client portal</title><link rel="stylesheet" href="/app/styles.css" /></head>
 <body>
 <a class="skip" href="#main-content">Skip to content</a>
-<header class="topbar"><div class="wrap topbar-inner"><div class="brand">Client portal</div><div class="stat-hint">Hello, ${escapeHtml(view.clientName)}${view.company ? ` · ${escapeHtml(view.company)}` : ""}</div></div></header>
+<header class="topbar"><div class="wrap topbar-inner"><div class="brand"><span class="brand-dot" aria-hidden="true"></span>Client portal</div><div class="stat-hint">Hello, ${escapeHtml(view.clientName)}${view.company ? ` · ${escapeHtml(view.company)}` : ""}</div></div></header>
 <main class="wrap" id="main-content" tabindex="-1">
-<p class="eyebrow">Project · ${escapeHtml(view.projectTitle)}</p>
-<h1 class="h1">${escapeHtml(view.focusHeadline)}</h1>
-<p class="sub">${escapeHtml(view.focusBody)}</p>
+<section class="hero hero-tight"><p class="eyebrow reveal">Project · ${escapeHtml(view.projectTitle)}</p>
+<h1 class="hero-display reveal" data-rv="1">${escapeHtml(view.focusHeadline)}</h1>
+<p class="hero-sub reveal" data-rv="2">${escapeHtml(view.focusBody)}</p></section>
 ${focus}
 ${stats}
 ${howItWorks}
@@ -416,9 +448,9 @@ ${locks}
 ${needsTime}
 ${automatic}
 ${activity}
-<p class="stat-hint">${escapeHtml(view.disclaimer)}</p>
+<p class="stat-hint reveal">${escapeHtml(view.disclaimer)}</p>
 </main>
-<footer class="wrap foot">Informational workflow record. Not legal advice.</footer>
+<footer class="wrap foot"><p class="foot-links"><span class="brand-mini">Client portal</span> · Review · Approve · Pay</p><p>Informational workflow record. Not legal advice.</p></footer>
 <script src="/portal/app.js" defer></script>
 </body>
 </html>`;
